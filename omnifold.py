@@ -66,11 +66,9 @@ def binned_omnifold(response, measured_hist, num_iterations):
     measured_entries = dh.prepare_hist_data(measured_counts, measured_bin_centers)
     
     return omnifold(MC_entries, sim_entries, measured_entries, num_iterations)
-def unbinned_omnifold(MC_data, sim_data, measured_data, num_iterations):
-    miss_mask = (~np.isnan(sim_data)) & (~np.isnan(MC_data))
-    
-    MC_entries = np.expand_dims(MC_data[miss_mask], axis = 1)
-    sim_entries = np.expand_dims(sim_data[miss_mask], axis = 1)
+def unbinned_omnifold(MC_data, sim_data, measured_data, pass_reco_mask, num_iterations):
+    MC_entries = np.expand_dims(MC_data[pass_reco_mask], axis = 1)
+    sim_entries = np.expand_dims(sim_data, axis = 1)
     measured_entries = np.expand_dims(measured_data, axis = 1)
     
     return omnifold(MC_entries, sim_entries, measured_entries, num_iterations)

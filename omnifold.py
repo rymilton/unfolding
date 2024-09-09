@@ -105,8 +105,11 @@ def binned_omnifold(response, measured_hist, num_iterations):
     pass_reco_mask = np.full_like(np.ones(len(MC_entries)), True, dtype=bool)
     pass_truth_mask = np.full_like(np.ones(len(sim_entries)), True, dtype=bool)
     return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations)
-def unbinned_omnifold(MC_data, sim_data, measured_data, pass_reco_mask, pass_truth_mask, num_iterations):
-    MC_entries = np.expand_dims(MC_data, axis = 1)
-    sim_entries = np.expand_dims(sim_data, axis = 1)
-    measured_entries = np.expand_dims(measured_data, axis = 1)
+def unbinned_omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations):
+    if MC_entries.shape[-1] == len(MC_entries):
+        MC_entries = np.expand_dims(MC_entries, axis = 1)
+    if sim_entries.shape[-1] == len(sim_entries):
+        sim_entries = np.expand_dims(sim_entries, axis = 1)
+    if measured_entries.shape[-1] == len(measured_entries):
+        measured_entries = np.expand_dims(measured_entries, axis = 1)
     return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations)

@@ -13,23 +13,14 @@ def reweight(events, classifier):
     weights = data_probability / (1. - data_probability)
     return np.squeeze(np.nan_to_num(weights))
 
-def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations):
+def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations, params):
     verbose = False
     
     sim_entries = sim_entries[pass_truth_mask]
-    # Want all arrays to be the same size so we can split them simultaneously
-    sim_entries_padded = np.full_like(MC_entries, np.nan)
-    
-    num_pass = 0
-    for i, entry in enumerate(pass_reco_mask):
-        if entry:
-            if num_pass < len(sim_entries):
-                sim_entries_padded[i] = sim_entries[num_pass]
-                num_pass += 1
-            else:
-                break
+    MC_entries = MC_entries[pass_truth_mask]
+    pass_reco_mask = pass_reco_mask[pass_truth_mask]
 
-    MC_train, MC_test, sim_train, sim_test, pass_reco_train, pass_reco_test = train_test_split(MC_entries, sim_entries_padded, pass_reco_mask,  test_size = .5)
+    MC_train, MC_test, sim_train, sim_test, pass_reco_train, pass_reco_test = train_test_split(MC_entries, sim_entries, pass_reco_mask, test_size = .5)
     
     measured_labels = np.ones(len(measured_entries))
     MC_labels = np.zeros(len(MC_train))
@@ -42,8 +33,8 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
     weights_push_test = np.ones(len(MC_test))
     weights_test = np.empty(shape=(num_iterations, 2, len(MC_test)))
 
-    step1_classifier = GradientBoostingClassifier()
-    step2_classifier = GradientBoostingClassifier()
+    step1_classifier = GradientBoostingClassifier(**params)
+    step2_classifier = GradientBoostingClassifier(**params)
     for i in range(num_iterations):
         print(f"Starting iteration {i}") 
         step1_data = np.concatenate((sim_train[pass_reco_train], measured_entries))
@@ -57,7 +48,7 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
         
         # Training a regression model to predict the weights of the events that don't pass reconstruction
         if len(sim_train[~pass_reco_train]) > 0:
-            regressor_train = GradientBoostingRegressor()
+            regressor_train = GradientBoostingRegressor(**params)
             regressor_train.fit(MC_train[pass_reco_train], new_weights_train[pass_reco_train])
             new_weights_train[~pass_reco_train] = regressor_train.predict(MC_train[~pass_reco_train])
         weights_pull_train = np.multiply(weights_push_train, new_weights_train)
@@ -66,7 +57,7 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
         new_weights_test = np.ones_like(weights_pull_test)
         new_weights_test[pass_reco_test] = reweight(sim_test[pass_reco_test], step1_classifier)
         if len(sim_test[~pass_reco_test]) > 0:
-            regressor_test = GradientBoostingRegressor()
+            regressor_test = GradientBoostingRegressor(**params)
             regressor_test.fit(MC_test[pass_reco_test], new_weights_test[pass_reco_test])
             new_weights_test[~pass_reco_test] = regressor_test.predict(MC_test[~pass_reco_test])
         weights_pull_test = np.multiply(weights_push_test, new_weights_test)
@@ -96,7 +87,9 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
         weights_test[i, 0], weights_test[i, 1] = weights_pull_test, weights_push_test
     return weights_test, MC_test, sim_test[pass_reco_test], pass_reco_test
 
-def binned_omnifold(response, measured_hist, num_iterations):
+def binned_omnifold(response, measured_hist, num_iterations, params=None):
+    if params is None:
+        params=dict()
     measured_counts, measured_bin_centers = dh.TH1_to_numpy(measured_hist)
     response_hist = response.HresponseNoOverflow()
     response_counts, response_bin_centers = dh.TH2_to_numpy(response_hist)
@@ -104,12 +97,14 @@ def binned_omnifold(response, measured_hist, num_iterations):
     measured_entries = dh.prepare_hist_data(measured_counts, measured_bin_centers)
     pass_reco_mask = np.full_like(np.ones(len(MC_entries)), True, dtype=bool)
     pass_truth_mask = np.full_like(np.ones(len(sim_entries)), True, dtype=bool)
-    return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations)
-def unbinned_omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations):
+    return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations, params)
+def unbinned_omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations, params=None):
+    if params is None:
+        params = dict()
     if MC_entries.shape[-1] == len(MC_entries):
         MC_entries = np.expand_dims(MC_entries, axis = 1)
     if sim_entries.shape[-1] == len(sim_entries):
         sim_entries = np.expand_dims(sim_entries, axis = 1)
     if measured_entries.shape[-1] == len(measured_entries):
         measured_entries = np.expand_dims(measured_entries, axis = 1)
-    return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations)
+    return omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_truth_mask, num_iterations, params)

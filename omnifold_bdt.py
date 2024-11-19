@@ -22,17 +22,17 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
     if MC_weight is None:
         MC_weight = np.ones(len(MC_entries))
     if sim_weight is None:
-        sim_weight = np.ones(len(sim_weight))
+        sim_weight = np.ones(len(sim_entries))
     if data_weight is None:
-        data_weight = np.ones(len(data_weight))
+        data_weight = np.ones(len(measured_entries))
 
     if train_test_split:
         MC_train, MC_test, sim_train, sim_test, pass_reco_train, pass_reco_test, MC_weight_train, _, sim_weight_train, _= train_test_split(MC_entries,
-                                                                                                                                                                      sim_entries,
-                                                                                                                                                                      pass_reco_mask,
-                                                                                                                                                                      MC_weight,
-                                                                                                                                                                      sim_weight,
-                                                                                                                                                                      test_size = .5)
+                                                                                                                                           sim_entries,
+                                                                                                                                           pass_reco_mask,
+                                                                                                                                           MC_weight,
+                                                                                                                                           sim_weight,
+                                                                                                                                           test_size = .5)
         weights_pull_test = np.ones(len(MC_test))
         weights_push_test = np.ones(len(MC_test))
         weights_test = np.empty(shape=(num_iterations, 2, len(MC_test)))
@@ -40,7 +40,10 @@ def omnifold(MC_entries, sim_entries, measured_entries, pass_reco_mask, pass_tru
         MC_train = MC_entries
         sim_train = sim_entries
         pass_reco_train = pass_reco_mask
+        sim_weight_train = sim_weight
+        MC_weight_train = MC_weight
     
+    print(sim_weight_train[pass_reco_train])
     measured_labels = np.ones(len(measured_entries))
     MC_labels = np.zeros(len(MC_train))
 
